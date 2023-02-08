@@ -412,6 +412,7 @@ class EditItemViewController: UIViewController, UICollectionViewDelegate, UIAdap
     private func addItem(_ sender: UIBarButtonItem) {
         guard let managedContext, let item = NSEntityDescription.insertNewObject(forEntityName: "Item", into: managedContext) as? Item else { return }
         item.imageData = selectedImage?.pngData()
+        item.imageOrientation = Int64(selectedImage?.imageOrientation.rawValue ?? 0)
         item.title = itemTitle
         item.date = selectedDate
         item.room = selectedRoom
