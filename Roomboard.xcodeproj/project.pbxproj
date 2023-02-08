@@ -32,6 +32,8 @@
 		2478B1122962597A0062D56F /* Item+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2478B1102962597A0062D56F /* Item+CoreDataClass.swift */; };
 		2478B1132962597A0062D56F /* Item+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2478B1112962597A0062D56F /* Item+CoreDataProperties.swift */; };
 		2478B1152963AC0E0062D56F /* ItemDetailViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2478B1142963AC0E0062D56F /* ItemDetailViewController.swift */; };
+		247A55A32992C23E001B675D /* SettingsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 247A55A22992C23E001B675D /* SettingsViewController.swift */; };
+		247A55A72992E0D7001B675D /* AppearanceSelectionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 247A55A62992E0D7001B675D /* AppearanceSelectionViewController.swift */; };
 		24A119A92945B8620081C8B7 /* RoomSelectionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24A119A82945B8620081C8B7 /* RoomSelectionViewController.swift */; };
 		24A119AC2945CA6D0081C8B7 /* Roomboard.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 24A119AA2945CA6D0081C8B7 /* Roomboard.xcdatamodeld */; };
 		24A119C52949630A0081C8B7 /* Logging in Frameworks */ = {isa = PBXBuildFile; productRef = 24A119C42949630A0081C8B7 /* Logging */; };
@@ -81,6 +83,8 @@
 		2478B1102962597A0062D56F /* Item+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Item+CoreDataClass.swift"; sourceTree = "<group>"; };
 		2478B1112962597A0062D56F /* Item+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Item+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		2478B1142963AC0E0062D56F /* ItemDetailViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemDetailViewController.swift; sourceTree = "<group>"; };
+		247A55A22992C23E001B675D /* SettingsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsViewController.swift; sourceTree = "<group>"; };
+		247A55A62992E0D7001B675D /* AppearanceSelectionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSelectionViewController.swift; sourceTree = "<group>"; };
 		24A119A82945B8620081C8B7 /* RoomSelectionViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomSelectionViewController.swift; sourceTree = "<group>"; };
 		24A119AB2945CA6D0081C8B7 /* Roomboard.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = Roomboard.xcdatamodel; sourceTree = "<group>"; };
 		24A119C62949B5400081C8B7 /* MaterialView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaterialView.swift; sourceTree = "<group>"; };
@@ -208,6 +212,7 @@
 		246E71082942FC4D00683EAE /* Roomboard */ = {
 			isa = PBXGroup;
 			children = (
+				247A55A12992C22D001B675D /* Settings */,
 				2405E544294FAF0600D8B7B2 /* Supporting Files */,
 				2405E543294FAEF500D8B7B2 /* Controllers */,
 				2405E541294E6FA300D8B7B2 /* Views */,
@@ -218,6 +223,15 @@
 				24A119AA2945CA6D0081C8B7 /* Roomboard.xcdatamodeld */,
 			);
 			path = Roomboard;
+			sourceTree = "<group>";
+		};
+		247A55A12992C22D001B675D /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				247A55A22992C23E001B675D /* SettingsViewController.swift */,
+				247A55A62992E0D7001B675D /* AppearanceSelectionViewController.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 		24A119B3294661CD0081C8B7 /* Cells */ = {
@@ -352,6 +366,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				247A55A72992E0D7001B675D /* AppearanceSelectionViewController.swift in Sources */,
 				2405E546294FB29B00D8B7B2 /* EditItemViewController.swift in Sources */,
 				24E05FCB295E62DD00D9573D /* ImagePickerContentView.swift in Sources */,
 				246E710A2942FC4D00683EAE /* AppDelegate.swift in Sources */,
@@ -375,6 +390,7 @@
 				246E71242943030600683EAE /* Styles.swift in Sources */,
 				24E05FD129601EC200D9573D /* Tag+CoreDataProperties.swift in Sources */,
 				24E05FB92956DD0100D9573D /* DefaultTags.swift in Sources */,
+				247A55A32992C23E001B675D /* SettingsViewController.swift in Sources */,
 				24E05FD729617BC700D9573D /* ItemCell.swift in Sources */,
 				24E05FD029601EC200D9573D /* Tag+CoreDataClass.swift in Sources */,
 				2469EE2F29526F02003A3C99 /* DatePickerContentConfiguration.swift in Sources */,

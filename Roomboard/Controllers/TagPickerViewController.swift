@@ -130,7 +130,7 @@ class TagPickerViewController: UIViewController, UICollectionViewDelegate, UICol
         } else {
             snapshot.deleteItems([.addButton])
         }
-        dataSource.apply(snapshot, animatingDifferences: true)
+        dataSource.apply(snapshot, animatingDifferences: false)
     }
     
     private func populateTags() {

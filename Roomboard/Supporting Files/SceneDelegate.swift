@@ -21,6 +21,8 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window.rootViewController = UINavigationController(rootViewController: InventoryViewController())
         self.window = window
         window.makeKeyAndVisible()
+        
+        UserDefaults.standard.addObserver(self, forKeyPath: "selectedAppearanceString", context: nil)
     }
 
     func sceneDidDisconnect(_ scene: UIScene) {
@@ -52,6 +54,15 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
         // Save changes in the application's managed object context when the application transitions to the background.
         (UIApplication.shared.delegate as? AppDelegate)?.saveContext()
+    }
+    
+    override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
+        guard let window else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            UIView.transition(with: window, duration: 0.3, options: .transitionCrossDissolve) {
+                window.overrideUserInterfaceStyle = UserDefaults.standard.selectedAppearance.userInterfaceStyle
+            }
+        }
     }
 
 

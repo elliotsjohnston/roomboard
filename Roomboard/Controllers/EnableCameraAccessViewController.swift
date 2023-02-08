@@ -145,7 +145,7 @@ class EnableCameraAccessViewController: UIViewController {
     private func finishOnboarding() {
         filterRooms()
         presentingViewController?.dismiss(animated: true)
-        Defaults.finishedOnboarding = true
+        UserDefaults.standard.finishedOnboarding = true
     }
     
     private func filterRooms() {

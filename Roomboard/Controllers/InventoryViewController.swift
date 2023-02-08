@@ -24,6 +24,16 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
     
     private var editItemNavigationController: UINavigationController?
     
+    private var settingsNavigationController: UINavigationController?
+    
+    private lazy var settingsButton: UIBarButtonItem = {
+        let settingsButton = UIBarButtonItem(image: UIImage(systemName: "gear"),
+                                             style: .plain,
+                                             target: self,
+                                             action: #selector(showSettingsScreen))
+        return settingsButton
+    }()
+    
     private lazy var addButton: UIBarButtonItem = {
         let addButton = UIBarButtonItem(barButtonSystemItem: .add,
                                         target: self,
@@ -163,11 +173,12 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
         navigationController?.isToolbarHidden = false
         toolbarItems = [.flexibleSpace(), UIBarButtonItem(customView: filterButton), .flexibleSpace()]
         
+        navigationItem.leftBarButtonItem = settingsButton
         navigationItem.rightBarButtonItem = addButton
         navigationItem.searchController = searchController
         navigationItem.hidesSearchBarWhenScrolling = false
 
-        if !Defaults.finishedOnboarding {
+        if !UserDefaults.standard.finishedOnboarding {
             let onboardingNavigationController = UINavigationController(rootViewController: OnboardingViewController())
             onboardingNavigationController.isModalInPresentation = true
             parent?.present(onboardingNavigationController, animated: true)
@@ -176,9 +187,9 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
             populateInventoryItems()
         }
         
-        if !Defaults.installedDefaultTags, let managedContext {
+        if !UserDefaults.standard.installedDefaultTags, let managedContext {
             DefaultTag.installDefaultTags(with: managedContext)
-            Defaults.installedDefaultTags = true
+            UserDefaults.standard.installedDefaultTags = true
         }
         
         if let managedContext {
@@ -409,6 +420,13 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
         let editItemNavigationController = UINavigationController(rootViewController: EditItemViewController())
         present(editItemNavigationController, animated: true)
         self.editItemNavigationController = editItemNavigationController
+    }
+    
+    @objc
+    private func showSettingsScreen(_ sender: UIBarButtonItem) {
+        let settingsNavigationController = UINavigationController(rootViewController: SettingsViewController())
+        present(settingsNavigationController, animated: true)
+        self.settingsNavigationController
     }
     
     private enum ValueFilter: CaseIterable {
