@@ -12,6 +12,13 @@ class SettingsViewController: UIViewController, UICollectionViewDelegate {
     
     private var cancellable: AnyCancellable?
     
+    private lazy var doneButton: UIBarButtonItem = {
+        let doneButton = UIBarButtonItem(barButtonSystemItem: .done,
+                                         target: self,
+                                         action: #selector(dismissSettings))
+        return doneButton
+    }()
+    
     private lazy var settingsLayout: UICollectionViewLayout = {
         let config = UICollectionLayoutListConfiguration(appearance: .insetGrouped)
         let settingsLayout = UICollectionViewCompositionalLayout.list(using: config)
@@ -85,6 +92,8 @@ class SettingsViewController: UIViewController, UICollectionViewDelegate {
         
         title = "Settings"
         
+        navigationItem.rightBarButtonItem = doneButton
+        
         view.backgroundColor = .systemBackground
         view.addSubview(settingsView)
         settingsView.frame = view.bounds
@@ -121,7 +130,7 @@ class SettingsViewController: UIViewController, UICollectionViewDelegate {
 //                                        .disclosureCell(title: "Rooms", currentValue: "None", destination: .rooms),
 //                                        .disclosureCell(title: "Tags", currentValue: "None", destination: .tags)])
         
-        disclosureItemsSnapshot.append([.disclosureCell(title: "Apeparance", currentValue: UserDefaults.standard.selectedAppearance.description, destination: .appearance)])
+        disclosureItemsSnapshot.append([.disclosureCell(title: "Appearance", currentValue: UserDefaults.standard.selectedAppearance.description, destination: .appearance)])
         // TODO: - Implement
         
 //        var togglesSnapshot = NSDiffableDataSourceSectionSnapshot<SettingsItem>()
@@ -147,6 +156,11 @@ class SettingsViewController: UIViewController, UICollectionViewDelegate {
             break
         }
         
+    }
+    
+    @objc
+    func dismissSettings(_ sender: UIBarButtonItem) {
+        dismiss(animated: true)
     }
 
 }
