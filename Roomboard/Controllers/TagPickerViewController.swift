@@ -15,6 +15,8 @@ class TagPickerViewController: UIViewController, UICollectionViewDelegate, UICol
     
     private var currentlyEditingTag: Tag?
     
+    private var currentlyEditingIndexPath: IndexPath?
+    
     var selectedTags = [Tag]()
     
     var dismissHandler: ((TagPickerViewController) -> Void)?
@@ -27,7 +29,29 @@ class TagPickerViewController: UIViewController, UICollectionViewDelegate, UICol
     }()
     
     private lazy var tagsViewLayout: UICollectionViewLayout = {
-        let config = UICollectionLayoutListConfiguration(appearance: .insetGrouped)
+        var config = UICollectionLayoutListConfiguration(appearance: .insetGrouped)
+        config.trailingSwipeActionsConfigurationProvider = { [unowned self] indexPath -> UISwipeActionsConfiguration? in
+            guard indexPath != dataSource.indexPath(for: .addButton) else { return nil }
+            let action = UIContextualAction(style: .destructive, title: "Delete") { [unowned self] action, sourceView, completionHandler in
+                var actionPerformed = false
+                defer { completionHandler(actionPerformed) }
+                
+                if let item = dataSource.itemIdentifier(for: indexPath), case let .tag(tag) = item {
+                    managedContext?.delete(tag)
+                    selectedTags.removeAll { $0 == tag }
+                    do {
+                        try managedContext?.save()
+                    } catch {
+                        logger.error("Failed to delete tag: \(error.localizedDescription)")
+                    }
+                    var sectionSnapshot = dataSource.snapshot(for: .main)
+                    sectionSnapshot.delete([item])
+                    dataSource.apply(sectionSnapshot, to: .main, animatingDifferences: true)
+                    actionPerformed = true
+                }
+            }
+            return UISwipeActionsConfiguration(actions: [action])
+        }
         let tagsViewLayout = UICollectionViewCompositionalLayout.list(using: config)
         return tagsViewLayout
     }()
@@ -73,6 +97,9 @@ class TagPickerViewController: UIViewController, UICollectionViewDelegate, UICol
         var config = TagContentConfiguration()
         config.tag = tag
         config.isEditable = isEditing
+        config.textFieldSelectionHandler = { [unowned self] in
+            currentlyEditingIndexPath = indexPath
+        }
         config.textUpdateHandler = { [unowned self] text in
             tag.text = text
             
@@ -218,6 +245,24 @@ class TagPickerViewController: UIViewController, UICollectionViewDelegate, UICol
             try managedContext?.save()
         } catch {
             logger.error("Failed to update tag: \(error.localizedDescription)")
+        }
+    }
+    
+    @objc
+    private func keyboardWillShow(_ notification: Notification) {
+        if let keyboardFrame = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
+            guard let currentlyEditingIndexPath else { return }
+            tagsView.verticalScrollIndicatorInsets.bottom = keyboardFrame.height
+            tagsView.contentInset.bottom = keyboardFrame.height
+            tagsView.scrollToItem(at: currentlyEditingIndexPath, at: .top, animated: true)
+        }
+    }
+    
+    @objc
+    private func keyboardWillHide(_ notification: Notification) {
+        UIView.animate(withDuration: 0.21) { [unowned self] in
+            tagsView.contentInset.bottom = 0.0
+            tagsView.verticalScrollIndicatorInsets.bottom = 0.0
         }
     }
 
