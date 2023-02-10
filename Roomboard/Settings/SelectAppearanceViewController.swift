@@ -1,5 +1,5 @@
 //
-//  AppearanceSelectionViewController.swift
+//  SelectAppearanceViewController.swift
 //  Roomboard
 //
 //  Created by Elliot Johnston on 2/7/23.
@@ -7,7 +7,7 @@
 
 import UIKit
 
-class AppearanceSelectionViewController: UIViewController, UICollectionViewDelegate {
+class SelectAppearanceViewController: UIViewController, UICollectionViewDelegate {
     
     private lazy var listLayout: UICollectionViewLayout = {
         let config = UICollectionLayoutListConfiguration(appearance: .insetGrouped)
@@ -46,7 +46,8 @@ class AppearanceSelectionViewController: UIViewController, UICollectionViewDeleg
         super.viewDidLoad()
         
         _ = itemCellRegistration
-
+        
+        title = "Appearance"
         view.addSubview(listView)
         listView.frame = view.bounds
         

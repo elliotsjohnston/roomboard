@@ -7,10 +7,23 @@
 
 import UIKit
 import Combine
+import CoreData
+import Logging
 
 class SettingsViewController: UIViewController, UICollectionViewDelegate {
     
-    private var cancellable: AnyCancellable?
+    private var bag = Set<AnyCancellable>()
+    
+    private var tagCount = 0
+    
+    private var roomCount = 0
+    
+    private let logger = Logger(label: "com.roomboard.settings-view-controller")
+    
+    private lazy var managedContext: NSManagedObjectContext? = {
+        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return nil }
+        return appDelegate.persistentContainer.viewContext
+    }()
     
     private lazy var doneButton: UIBarButtonItem = {
         let doneButton = UIBarButtonItem(barButtonSystemItem: .done,
@@ -98,10 +111,25 @@ class SettingsViewController: UIViewController, UICollectionViewDelegate {
         view.addSubview(settingsView)
         settingsView.frame = view.bounds
         
-        cancellable = NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
+        NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification)
             .sink { [unowned self] _ in
                 configureDataSource()
             }
+            .store(in: &bag)
+        
+        if let managedContext {
+            NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave, object: managedContext)
+                .sink { [unowned self] _ in
+                    populateTagCount()
+                    populateRoomCount()
+                    
+                    configureDataSource()
+                }
+                .store(in: &bag)
+        }
+        
+        populateTagCount()
+        populateRoomCount()
 
         configureDataSource()
     }
@@ -126,19 +154,18 @@ class SettingsViewController: UIViewController, UICollectionViewDelegate {
     
     private func configureDataSource() {
         var disclosureItemsSnapshot = NSDiffableDataSourceSectionSnapshot<SettingsItem>()
-//        disclosureItemsSnapshot.append([.disclosureCell(title: "Appearance", currentValue: UserDefaults.standard.selectedAppearance.description, destination: .appearance),
-//                                        .disclosureCell(title: "Rooms", currentValue: "None", destination: .rooms),
-//                                        .disclosureCell(title: "Tags", currentValue: "None", destination: .tags)])
+        disclosureItemsSnapshot.append([.disclosureCell(title: "Appearance", currentValue: UserDefaults.standard.selectedAppearance.description, destination: .appearance),
+                                        .disclosureCell(title: "Rooms", currentValue: "\(roomCount) \(roomCount == 1 ? "Room" : "Rooms")", destination: .rooms),
+                                        .disclosureCell(title: "Tags", currentValue: "\(tagCount) \(tagCount == 1 ? "Tag" : "Tags")", destination: .tags)])
         
-        disclosureItemsSnapshot.append([.disclosureCell(title: "Appearance", currentValue: UserDefaults.standard.selectedAppearance.description, destination: .appearance)])
-        // TODO: - Implement
-        
-//        var togglesSnapshot = NSDiffableDataSourceSectionSnapshot<SettingsItem>()
-//        togglesSnapshot.append([.toggle(title: "Persist Filters", userDefaultsKey: "com.roomboard.persist-filters")])
+        var togglesSnapshot = NSDiffableDataSourceSectionSnapshot<SettingsItem>()
+        togglesSnapshot.append([.toggle(title: "Preserve Filters", userDefaultsKey: "com.roomboard.preserve-filters")])
         
         dataSource.apply(disclosureItemsSnapshot, to: .disclosureItems)
-//        dataSource.apply(togglesSnapshot, to: .toggles)
+        dataSource.apply(togglesSnapshot, to: .toggles)
     }
+    
+    
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         guard let item = dataSource.itemIdentifier(for: indexPath) else { return }
@@ -149,18 +176,46 @@ class SettingsViewController: UIViewController, UICollectionViewDelegate {
         
         switch destination {
         case .appearance:
-            navigationController?.pushViewController(AppearanceSelectionViewController(), animated: true)
+            navigationController?.pushViewController(SelectAppearanceViewController(), animated: true)
         case .rooms:
-            break
+            navigationController?.pushViewController(EditRoomsViewController(), animated: true)
         case .tags:
-            break
+            navigationController?.pushViewController(EditTagsViewController(), animated: true)
         }
         
     }
     
     @objc
-    func dismissSettings(_ sender: UIBarButtonItem) {
+    private func dismissSettings(_ sender: UIBarButtonItem) {
         dismiss(animated: true)
+    }
+    
+    private func populateTagCount() {
+        guard let managedContext else { return }
+        do {
+            let fetchRequest = Tag.fetchRequest()
+            fetchRequest.includesSubentities = false
+            tagCount = try managedContext.count(for: fetchRequest)
+        } catch {
+#if DEBUG
+            logger.error("Failed to fetch tag count: \(error.localizedDescription)")
+#endif
+        }
+        
+    }
+    
+    private func populateRoomCount() {
+        guard let managedContext else { return }
+        do {
+            let fetchRequest = Room.fetchRequest()
+            fetchRequest.includesSubentities = false
+            roomCount = try managedContext.count(for: fetchRequest)
+        } catch {
+#if DEBUG
+            logger.error("Failed to fetch room count: \(error.localizedDescription)")
+#endif
+        }
+        
     }
 
 }

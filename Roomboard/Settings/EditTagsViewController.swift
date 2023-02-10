@@ -1,25 +1,23 @@
 //
-//  TagPickerViewController.swift
+//  EditTagsViewController.swift
 //  Roomboard
 //
-//  Created by Elliot Johnston on 12/24/22.
+//  Created by Elliot Johnston on 2/9/23.
 //
 
 import UIKit
 import CoreData
 import Logging
 
-class TagPickerViewController: UIViewController, UICollectionViewDelegate, UIColorPickerViewControllerDelegate {
-    
+class EditTagsViewController: UIViewController, UICollectionViewDelegate, UIColorPickerViewControllerDelegate {
+
     private var tags = [Tag]()
     
     private var currentlyEditingTag: Tag?
     
-    var selectedTags = [Tag]()
+    private var currentlyEditingIndexPath: IndexPath?
     
-    var dismissHandler: ((TagPickerViewController) -> Void)?
-    
-    private let logger = Logger(label: "com.andyjohnston.roomboard.tag-picker-view-controller")
+    private let logger = Logger(label: "com.andyjohnston.roomboard.edit-tags-view-controller")
     
     private lazy var managedContext: NSManagedObjectContext? = {
         guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return nil }
@@ -27,7 +25,28 @@ class TagPickerViewController: UIViewController, UICollectionViewDelegate, UICol
     }()
     
     private lazy var tagsViewLayout: UICollectionViewLayout = {
-        let config = UICollectionLayoutListConfiguration(appearance: .insetGrouped)
+        var config = UICollectionLayoutListConfiguration(appearance: .insetGrouped)
+        config.trailingSwipeActionsConfigurationProvider = { [unowned self] indexPath -> UISwipeActionsConfiguration? in
+            guard indexPath != dataSource.indexPath(for: .addButton) else { return nil }
+            let action = UIContextualAction(style: .destructive, title: "Delete") { [unowned self] action, sourceView, completionHandler in
+                var actionPerformed = false
+                defer { completionHandler(actionPerformed) }
+                
+                if let item = dataSource.itemIdentifier(for: indexPath), case let .tag(tag) = item {
+                    managedContext?.delete(tag)
+                    do {
+                        try managedContext?.save()
+                    } catch {
+                        logger.error("Failed to delete tag: \(error.localizedDescription)")
+                    }
+                    var sectionSnapshot = dataSource.snapshot(for: .main)
+                    sectionSnapshot.delete([item])
+                    dataSource.apply(sectionSnapshot, to: .main, animatingDifferences: true)
+                    actionPerformed = true
+                }
+            }
+            return UISwipeActionsConfiguration(actions: [action])
+        }
         let tagsViewLayout = UICollectionViewCompositionalLayout.list(using: config)
         return tagsViewLayout
     }()
@@ -72,7 +91,10 @@ class TagPickerViewController: UIViewController, UICollectionViewDelegate, UICol
     private lazy var tagCellRegistration = UICollectionView.CellRegistration<TagCell, Tag> { [unowned self] cell, indexPath, tag in
         var config = TagContentConfiguration()
         config.tag = tag
-        config.isEditable = isEditing
+        config.isEditable = true
+        config.textFieldSelectionHandler = { [unowned self] in
+            currentlyEditingIndexPath = indexPath
+        }
         config.textUpdateHandler = { [unowned self] text in
             tag.text = text
             
@@ -83,7 +105,14 @@ class TagPickerViewController: UIViewController, UICollectionViewDelegate, UICol
             }
         }
         cell.contentConfiguration = config
-        updateAccessoriesForCell(cell, with: tag)
+        let editColorButton = makeEditColorButton(UIAction { [unowned self] _ in
+            currentlyEditingTag = tag
+            let colorPicker = UIColorPickerViewController()
+            colorPicker.supportsAlpha = false
+            colorPicker.delegate = self
+            present(colorPicker, animated: true)
+        })
+        cell.accessories = [.customView(configuration: .init(customView: editColorButton, placement: .trailing()))]
     }
     
     private lazy var addButtonCellRegistration = UICollectionView.CellRegistration<UICollectionViewListCell, Void> { [unowned self] cell, indexPath, _ in
@@ -106,30 +135,19 @@ class TagPickerViewController: UIViewController, UICollectionViewDelegate, UICol
         view.backgroundColor = .secondarySystemBackground
         view.addSubview(tagsView)
         tagsView.frame = view.bounds
-        
-        navigationItem.rightBarButtonItem = editButtonItem
 
         populateTags()
         configureDataSource()
-    }
-    
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
         
-        dismissHandler?(self)
-    }
-    
-    override func setEditing(_ editing: Bool, animated: Bool) {
-        super.setEditing(editing, animated: animated)
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(keyboardWillShow),
+                                               name: UIResponder.keyboardWillShowNotification,
+                                               object: nil)
         
-        var snapshot = dataSource.snapshot()
-        snapshot.reloadSections([.main])
-        if isEditing {
-            snapshot.appendItems([.addButton])
-        } else {
-            snapshot.deleteItems([.addButton])
-        }
-        dataSource.apply(snapshot, animatingDifferences: false)
+        NotificationCenter.default.addObserver(self,
+                                               selector: #selector(keyboardWillHide),
+                                               name: UIResponder.keyboardWillHideNotification,
+                                               object: nil)
     }
     
     private func populateTags() {
@@ -150,44 +168,13 @@ class TagPickerViewController: UIViewController, UICollectionViewDelegate, UICol
         sectionSnapshot.append(tags.map {
             TagControl.tag(tag: $0)
         })
+        sectionSnapshot.append([.addButton])
         dataSource.apply(sectionSnapshot, to: .main)
-    }
-    
-    private func updateAccessoriesForCell(_ cell: UICollectionViewListCell, with tag: Tag) {
-        var accessories = [UICellAccessory]()
-        
-        if isEditing {
-            let editColorButton = makeEditColorButton(UIAction { [unowned self] _ in
-                currentlyEditingTag = tag
-                let colorPicker = UIColorPickerViewController()
-                colorPicker.supportsAlpha = false
-                colorPicker.delegate = self
-                present(colorPicker, animated: true)
-            })
-            accessories.append(.customView(configuration: .init(customView: editColorButton, placement: .trailing())))
-        }
-        
-        if selectedTags.contains(tag) {
-            accessories.append(.checkmark())
-        }
-        
-        cell.accessories = accessories
     }
     
     func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {
         guard let tagControl = dataSource.itemIdentifier(for: indexPath) else { return }
-        if case .tag(let tag) = tagControl {
-            if selectedTags.contains(tag) {
-                selectedTags.removeAll { $0 == tag }
-            } else {
-                selectedTags.append(tag)
-            }
-            selectedTags.sort { dataSource.indexPath(for: TagControl.tag(tag: $0))?.item ?? 0 < dataSource.indexPath(for: TagControl.tag(tag: $1))?.item ?? 0 }
-            if let cell = collectionView.cellForItem(at: indexPath) as? UICollectionViewListCell {
-                updateAccessoriesForCell(cell, with: tag)
-            }
-            collectionView.deselectItem(at: indexPath, animated: true)
-        } else {
+        if case .addButton = tagControl {
             guard let managedContext else { return }
             guard let newTag = NSEntityDescription.insertNewObject(forEntityName: "Tag", into: managedContext) as? Tag else { return }
             newTag.text = "New Tag"
@@ -196,7 +183,14 @@ class TagPickerViewController: UIViewController, UICollectionViewDelegate, UICol
             collectionView.deselectItem(at: indexPath, animated: true)
             var snapshot = dataSource.snapshot()
             snapshot.insertItems([.tag(tag: newTag)], beforeItem: .addButton)
-            dataSource.apply(snapshot, animatingDifferences: true)
+            dataSource.apply(snapshot, animatingDifferences: true) { [unowned self] in
+                guard let newTagFieldIndexPath = dataSource.indexPath(for: .tag(tag: newTag)),
+                      let newTagField = collectionView.cellForItem(at: newTagFieldIndexPath) as? TagCell,
+                      var config = newTagField.contentConfiguration as? TagContentConfiguration else { return }
+                
+                config.isEditing = true
+                newTagField.contentConfiguration = config
+            }
             
             do {
                 try managedContext.save()
@@ -204,6 +198,7 @@ class TagPickerViewController: UIViewController, UICollectionViewDelegate, UICol
                 logger.error("Failed to save tag: \(error.localizedDescription)")
             }
         }
+        collectionView.deselectItem(at: indexPath, animated: true)
         
     }
     
@@ -218,6 +213,24 @@ class TagPickerViewController: UIViewController, UICollectionViewDelegate, UICol
             try managedContext?.save()
         } catch {
             logger.error("Failed to update tag: \(error.localizedDescription)")
+        }
+    }
+    
+    @objc
+    private func keyboardWillShow(_ notification: Notification) {
+        if let keyboardFrame = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
+            guard let currentlyEditingIndexPath else { return }
+            tagsView.verticalScrollIndicatorInsets.bottom = keyboardFrame.height
+            tagsView.contentInset.bottom = keyboardFrame.height
+            tagsView.scrollToItem(at: currentlyEditingIndexPath, at: .top, animated: true)
+        }
+    }
+    
+    @objc
+    private func keyboardWillHide(_ notification: Notification) {
+        UIView.animate(withDuration: 0.21) { [unowned self] in
+            tagsView.contentInset.bottom = 0.0
+            tagsView.verticalScrollIndicatorInsets.bottom = 0.0
         }
     }
 

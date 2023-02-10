@@ -1,49 +1,23 @@
 //
-//  RoomSelectionViewController.swift
+//  EditRoomsViewController.swift
 //  Roomboard
 //
-//  Created by Elliot Johnston on 12/10/22.
+//  Created by Elliot Johnston on 2/9/23.
 //
 
 import UIKit
 import CoreData
 import Logging
 
-class RoomSelectionViewController: UIViewController, UICollectionViewDelegate, UIScrollViewDelegate {
+class EditRoomsViewController: UIViewController, UICollectionViewDelegate {
     
-    private let logger = Logger(label: "com.andyjohnston.roomboard.room-selection-view-controller")
+    private let logger = Logger(label: "com.andyjohnston.roomboard.edit-rooms-view-controller")
     
     private lazy var managedContext: NSManagedObjectContext? = {
         guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return nil }
         return appDelegate.persistentContainer.viewContext
     }()
-    
-    private lazy var titleGroup: UIStackView = {
-        let selectRoomsLabel = UILabel()
-        selectRoomsLabel.text = "Add Rooms"
-        selectRoomsLabel.font = Styles.boldTitleFont
-        selectRoomsLabel.numberOfLines = 0
-        selectRoomsLabel.textAlignment = .center
-        
-        let infoLabel = UILabel()
-        infoLabel.text = "When you catalog an item, you can include the room that it's being kept in."
-        infoLabel.font = UIFont.preferredFont(forTextStyle: .caption1)
-        infoLabel.numberOfLines = 0
-        infoLabel.textAlignment = .center
-        
-        let titleGroup = UIStackView(arrangedSubviews: [selectRoomsLabel, infoLabel])
-        titleGroup.axis = .vertical
-        titleGroup.spacing = 10.0
-        titleGroup.alignment = .center
-        
-        NSLayoutConstraint.activate([
-            titleGroup.layoutMarginsGuide.leadingAnchor.constraint(equalTo: selectRoomsLabel.leadingAnchor),
-            titleGroup.layoutMarginsGuide.trailingAnchor.constraint(equalTo: selectRoomsLabel.trailingAnchor)
-        ])
-        
-        return titleGroup
-    }()
-    
+
     private lazy var roomsLayout: UICollectionViewLayout = {
         var config = UICollectionLayoutListConfiguration(appearance: .insetGrouped)
         config.trailingSwipeActionsConfigurationProvider = { [unowned self] indexPath -> UISwipeActionsConfiguration? in
@@ -78,6 +52,7 @@ class RoomSelectionViewController: UIViewController, UICollectionViewDelegate, U
     private lazy var roomsView: UICollectionView = {
         let roomsView = UICollectionView(frame: .zero, collectionViewLayout: roomsLayout)
         roomsView.alwaysBounceVertical = false
+        roomsView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         roomsView.delegate = self
         
         return roomsView
@@ -135,38 +110,6 @@ class RoomSelectionViewController: UIViewController, UICollectionViewDelegate, U
         cell.accessories = [.customView(configuration: .init(customView: addIcon, placement: .leading()))]
     }
     
-    private lazy var materialView: MaterialView = {
-        let materialView = MaterialView()
-        materialView.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 35.0, leading: 30.0, bottom: 50.0, trailing: 30.0)
-        materialView.translatesAutoresizingMaskIntoConstraints = false
-        return materialView
-    }()
-    
-    private lazy var nextButton: UIButton = {
-        var config = UIButton.Configuration.filled()
-        config.buttonSize = .large
-        config.cornerStyle = .large
-        config.title = "Next"
-        
-        let nextButton = UIButton(configuration: config, primaryAction: UIAction { [unowned self] _ in
-            navigationController?.pushViewController(EnableCameraAccessViewController(), animated: true)
-        })
-        nextButton.role = .primary
-        nextButton.translatesAutoresizingMaskIntoConstraints = false
-        return nextButton
-    }()
-    
-    private lazy var contentStack: UIStackView = {
-        let contentStack = UIStackView(arrangedSubviews: [titleGroup, roomsView])
-        contentStack.spacing = 10.0
-        contentStack.axis = .vertical
-        contentStack.alignment = .center
-        contentStack.isLayoutMarginsRelativeArrangement = true
-        contentStack.directionalLayoutMargins = NSDirectionalEdgeInsets(top: 10.0, leading: 10.0, bottom: 50.0, trailing: 10.0)
-        contentStack.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        return contentStack
-    }()
-    
     private var currentlyEditingIndexPath: IndexPath?
 
     override func viewDidLoad() {
@@ -175,30 +118,10 @@ class RoomSelectionViewController: UIViewController, UICollectionViewDelegate, U
         _ = roomCellRegistration
         _ = addButtonCellRegistration
         
-        view.addSubview(materialView)
-        materialView.addSubview(nextButton)
-        NSLayoutConstraint.activate([
-            materialView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            materialView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            materialView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
-            nextButton.topAnchor.constraint(equalTo: materialView.layoutMarginsGuide.topAnchor),
-            nextButton.leadingAnchor.constraint(equalTo: materialView.layoutMarginsGuide.leadingAnchor),
-            nextButton.trailingAnchor.constraint(equalTo: materialView.layoutMarginsGuide.trailingAnchor),
-            nextButton.bottomAnchor.constraint(equalTo: materialView.layoutMarginsGuide.bottomAnchor)
-        ])
-
-        view.addSubview(contentStack)
+        title = "Rooms"
+        view.addSubview(roomsView)
+        roomsView.frame = view.bounds
         view.backgroundColor = .systemGroupedBackground
-        contentStack.frame = view.bounds
-        
-        NSLayoutConstraint.activate([
-            nextButton.leadingAnchor.constraint(equalTo: contentStack.leadingAnchor, constant: 30.0),
-            contentStack.trailingAnchor.constraint(equalTo: nextButton.trailingAnchor, constant: 30.0),
-            roomsView.leadingAnchor.constraint(equalTo: contentStack.layoutMarginsGuide.leadingAnchor),
-            contentStack.layoutMarginsGuide.trailingAnchor.constraint(equalTo: roomsView.trailingAnchor)
-        ])
-        
-        view.bringSubviewToFront(materialView)
         
         configureDataSource()
         
@@ -213,14 +136,33 @@ class RoomSelectionViewController: UIViewController, UICollectionViewDelegate, U
                                                object: nil)
     }
     
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
         
-        roomsView.contentInset.bottom = materialView.frame.height - contentStack.directionalLayoutMargins.bottom
-        roomsView.verticalScrollIndicatorInsets.bottom = materialView.frame.height - contentStack.directionalLayoutMargins.bottom
-        
-        UIView.animate(withDuration: 0.21) { [unowned self] in
-            updateMaterialEffect()
+        filterRooms()
+    }
+    
+    private func filterRooms() {
+        guard let managedContext else { return }
+        do {
+            let fetchRequest = Room.fetchRequest()
+            fetchRequest.sortDescriptors = [NSSortDescriptor(key: "index", ascending: true)]
+            _ = try managedContext.fetch(fetchRequest)
+                .reduce(Int64(0)) { currentIndex, room in
+                    if room.title?.isEmpty == false {
+                        room.index = currentIndex
+                        return currentIndex + 1
+                    } else {
+                        managedContext.delete(room)
+                        return currentIndex
+                    }
+                }
+            
+            try managedContext.save()
+        } catch {
+#if DEBUG
+            logger.error("Error filtering rooms: \(error.localizedDescription)")
+#endif
         }
     }
     
@@ -292,9 +234,6 @@ class RoomSelectionViewController: UIViewController, UICollectionViewDelegate, U
                 newRoomField.contentConfiguration = config
             }
         }
-        UIView.animate(withDuration: 0.21) { [unowned self] in
-            updateMaterialEffect()
-        }
         saveContext()
     }
     
@@ -310,26 +249,12 @@ class RoomSelectionViewController: UIViewController, UICollectionViewDelegate, U
         }
     }
     
-    func scrollViewDidScroll(_ scrollView: UIScrollView) {
-        UIView.animate(withDuration: 0.21) { [unowned self] in
-            updateMaterialEffect()
-        }
-    }
-    
-    private func updateMaterialEffect() {
-        if roomsView.collectionViewLayout.collectionViewContentSize.height - roomsView.contentOffset.y - contentStack.directionalLayoutMargins.bottom - 1.0 > roomsView.frame.height - materialView.frame.height {
-            materialView.effect = UIBlurEffect(style: .regular)
-        } else {
-            materialView.effect = nil
-        }
-    }
-    
     @objc
     private func keyboardWillShow(_ notification: Notification) {
         if let keyboardFrame = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
             guard let currentlyEditingIndexPath else { return }
-            roomsView.verticalScrollIndicatorInsets.bottom = keyboardFrame.height - contentStack.directionalLayoutMargins.bottom
-            roomsView.contentInset.bottom = keyboardFrame.height - contentStack.directionalLayoutMargins.bottom
+            roomsView.verticalScrollIndicatorInsets.bottom = keyboardFrame.height
+            roomsView.contentInset.bottom = keyboardFrame.height
             roomsView.scrollToItem(at: currentlyEditingIndexPath, at: .top, animated: true)
         }
     }
@@ -337,9 +262,9 @@ class RoomSelectionViewController: UIViewController, UICollectionViewDelegate, U
     @objc
     private func keyboardWillHide(_ notification: Notification) {
         UIView.animate(withDuration: 0.21) { [unowned self] in
-            roomsView.contentInset.bottom = materialView.frame.height - contentStack.directionalLayoutMargins.bottom
-            roomsView.verticalScrollIndicatorInsets.bottom = materialView.frame.height - contentStack.directionalLayoutMargins.bottom
+            roomsView.contentInset.bottom = 0.0
+            roomsView.verticalScrollIndicatorInsets.bottom = 0.0
         }
     }
-
+    
 }

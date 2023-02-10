@@ -68,6 +68,7 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
         let filterButton = UIButton(configuration: config)
         filterButton.showsMenuAsPrimaryAction = true
         filterButton.menu = makeFilterMenu()
+        saveFilterOptions()
         filterButton.preferredMenuElementOrder = .fixed
         filterButton.configurationUpdateHandler = { button in
             guard var config = button.configuration else { return }
@@ -169,6 +170,13 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
         
         view.backgroundColor = .systemBackground
         title = "Inventory"
+        
+        if UserDefaults.standard.preserveFilters {
+            sortMode = UserDefaults.standard.savedSortMode
+            valueFilters = Set(UserDefaults.standard.savedValueFilters)
+            searchProperties = Set(UserDefaults.standard.savedSearchProperties)
+        }
+        
         navigationController?.navigationBar.prefersLargeTitles = true
         navigationController?.isToolbarHidden = false
         toolbarItems = [.flexibleSpace(), UIBarButtonItem(customView: filterButton), .flexibleSpace()]
@@ -198,6 +206,8 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
                                                    name: .NSManagedObjectContextDidSave,
                                                    object: managedContext)
         }
+        
+        sortItems(animated: false)
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -217,7 +227,7 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
         }
     }
     
-    private func sortItems() {
+    private func sortItems(animated: Bool = true) {
         switch sortMode {
         case .title:
             items.sort { $0.title ?? "" < $1.title ?? "" }
@@ -230,7 +240,7 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
             // TODO: - Implement
         }
         
-        updateItems(animated: true)
+        updateItems(animated: animated)
     }
     
     private func makeFilterMenu() -> UIMenu {
@@ -240,6 +250,7 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
                      state: searchProperties.contains(property) ? .on : .off) { [unowned self] action in
                 searchProperties.formSymmetricDifference([property])
                 filterButton.menu = makeFilterMenu()
+                saveFilterOptions()
                 sortItems()
             }
         }
@@ -249,6 +260,7 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
                      state: valueFilters.contains(filter) ? .on : .off) { [unowned self] action in
                 valueFilters.formSymmetricDifference([filter])
                 filterButton.menu = makeFilterMenu()
+                saveFilterOptions()
                 sortItems()
             }
         }
@@ -258,6 +270,7 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
                      state: self.sortMode == sortMode ? .on : .off) { [unowned self] action in
                 self.sortMode = sortMode
                 filterButton.menu = makeFilterMenu()
+                saveFilterOptions()
                 sortItems()
             }
         }
@@ -285,6 +298,7 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
                 valueFilters = []
                 searchProperties = [.title]
                 filterButton.menu = makeFilterMenu()
+                saveFilterOptions()
                 sortItems()
             }
         ])
@@ -333,6 +347,12 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
                 .map(\.displayName)
                 .joined(separator: ", ")
         }
+    }
+    
+    private func saveFilterOptions() {
+        UserDefaults.standard.savedSortMode = sortMode
+        UserDefaults.standard.savedValueFilters = Array(valueFilters)
+        UserDefaults.standard.savedSearchProperties = Array(searchProperties)
     }
     
     private func populateInventoryItems() {
@@ -429,7 +449,7 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
         self.settingsNavigationController
     }
     
-    private enum ValueFilter: CaseIterable {
+    enum ValueFilter: String, CaseIterable {
         case f1
         case f2
         case f3
@@ -492,7 +512,7 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
         }
     }
     
-    private enum SortMode: CaseIterable {
+    enum SortMode: String, CaseIterable {
         case title
         case room
         case date
@@ -513,7 +533,7 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
         }
     }
     
-    private enum SearchProperty: CaseIterable {
+    enum SearchProperty: String, CaseIterable {
         case title
         case notes
         

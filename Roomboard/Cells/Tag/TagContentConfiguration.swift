@@ -18,5 +18,7 @@ struct TagContentConfiguration: UIContentConfiguration {
     
     var tag: Tag?
     var isEditable = false
+    var isEditing = false
     var textUpdateHandler: ((String) -> Void)?
+    var textFieldSelectionHandler: (() -> Void)?
 }

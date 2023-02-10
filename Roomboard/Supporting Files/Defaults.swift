@@ -39,31 +39,76 @@ enum Appearance: String, CaseIterable {
 extension UserDefaults {
     @objc dynamic var finishedOnboarding: Bool {
         get {
-            UserDefaults.standard.bool(forKey: "com.roomboard.finished-onboarding")
+            bool(forKey: "com.roomboard.finished-onboarding")
         }
         
         set {
-            UserDefaults.standard.set(newValue, forKey: "com.roomboard.finished-onboarding")
+            set(newValue, forKey: "com.roomboard.finished-onboarding")
         }
     }
     
     @objc dynamic var installedDefaultTags: Bool {
         get {
-            UserDefaults.standard.bool(forKey: "com.roomboard.installed-default-tags")
+            bool(forKey: "com.roomboard.installed-default-tags")
         }
         
         set {
-            UserDefaults.standard.set(newValue, forKey: "com.roomboard.installed-default-tags")
+            set(newValue, forKey: "com.roomboard.installed-default-tags")
         }
     }
     
     @objc dynamic var selectedAppearanceString: String? {
         get {
-            UserDefaults.standard.string(forKey: "com.roomboard.selected-appearance")
+            string(forKey: "com.roomboard.selected-appearance")
         }
         
         set {
-            UserDefaults.standard.set(newValue, forKey: "com.roomboard.selected-appearance")
+            set(newValue, forKey: "com.roomboard.selected-appearance")
+        }
+    }
+    
+    @objc dynamic var preserveFilters: Bool {
+        get {
+            bool(forKey: "com.roomboard.preserve-filters")
+        }
+        
+        set {
+            set(newValue, forKey: "com.roomboard.preserve-filters")
+        }
+    }
+    
+    var savedSearchProperties: [InventoryViewController.SearchProperty] {
+        get {
+            guard let searchPropertiesStringArray = stringArray(forKey: "com.roomboard.saved-search-properties") else { return [.title] }
+            let searchProperties = searchPropertiesStringArray.compactMap { InventoryViewController.SearchProperty(rawValue: $0) }
+            return searchProperties.isEmpty ? [.title] : searchProperties
+        }
+        
+        set {
+            set(newValue.map(\.rawValue), forKey: "com.roomboard.saved-search-properties")
+        }
+    }
+    
+    var savedValueFilters: [InventoryViewController.ValueFilter] {
+        get {
+            guard let valueFiltersStringArray = stringArray(forKey: "com.roomboard.saved-value-filters") else { return [] }
+            return valueFiltersStringArray.compactMap { InventoryViewController.ValueFilter(rawValue: $0) }
+        }
+        
+        set {
+            set(newValue.map(\.rawValue), forKey: "com.roomboard.saved-value-filters")
+        }
+    }
+    
+    var savedSortMode: InventoryViewController.SortMode {
+        get {
+            guard let sortModeString = string(forKey: "com.roomboard.saved-sort-mode") else { return .title }
+            guard let sortMode = InventoryViewController.SortMode(rawValue: sortModeString) else { return .title }
+            return sortMode
+        }
+        
+        set {
+            set(newValue.rawValue, forKey: "com.roomboard.saved-sort-mode")
         }
     }
     

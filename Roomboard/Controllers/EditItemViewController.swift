@@ -573,7 +573,7 @@ Edited an item:
     }
     
     @objc
-    func keyboardWillHide(_ notification: Notification) {
+    private func keyboardWillHide(_ notification: Notification) {
         UIView.animate(withDuration: 0.21) { [unowned self] in
             itemView.contentInset.bottom = 0.0
             itemView.verticalScrollIndicatorInsets.bottom = 0.0
