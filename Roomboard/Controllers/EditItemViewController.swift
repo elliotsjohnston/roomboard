@@ -232,7 +232,7 @@ class EditItemViewController: UIViewController, UICollectionViewDelegate, UIAdap
         var config = ImagePickerContentConfiguration()
         config.image = selectedImage
         if isEditingItem {
-            config.editButtonTitle = "Edit"
+            config.editButtonTitle = "Replace"
         } else {
             config.editButtonTitle = "Retake"
         }

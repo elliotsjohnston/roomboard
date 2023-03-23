@@ -100,7 +100,7 @@ class EditTagsViewController: UIViewController, UICollectionViewDelegate, UIColo
         config.textFieldSelectionHandler = { [unowned self] in
             currentlyEditingIndexPath = indexPath
         }
-        config.textFieldDismissHandler = {
+        config.textFieldDismissHandler = { [unowned self] in
             managedContext?.perform { [unowned self] in
                 do {
                     try managedContext?.save()
