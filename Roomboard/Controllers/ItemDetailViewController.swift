@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import Combine
 import CoreData
 
 class ItemDetailViewController: UIViewController, UICollectionViewDelegate {
@@ -13,6 +14,8 @@ class ItemDetailViewController: UIViewController, UICollectionViewDelegate {
     var item: Item?
     
     private var editItemNavigationController: UINavigationController?
+    
+    private var bag = Set<AnyCancellable>()
     
     private lazy var managedContext: NSManagedObjectContext? = {
         guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return nil }
@@ -113,10 +116,13 @@ class ItemDetailViewController: UIViewController, UICollectionViewDelegate {
         title = item?.title
         
         if let managedContext {
-            NotificationCenter.default.addObserver(self,
-                                                   selector: #selector(managedObjectContextDidSave),
-                                                   name: .NSManagedObjectContextDidSave,
-                                                   object: managedContext)
+            NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave, object: managedContext)
+                .receive(on: RunLoop.main)
+                .sink { [unowned self] _ in
+                    configureDataSource()
+                    title = item?.title
+                }
+                .store(in: &bag)
         }
         
         configureDataSource()
@@ -128,10 +134,7 @@ class ItemDetailViewController: UIViewController, UICollectionViewDelegate {
         if let correctedImage = item.correctedImage {
             var imageSectionSnapshot = NSDiffableDataSourceSectionSnapshot<Field>()
             imageSectionSnapshot.append([.image(image: correctedImage)])
-            dataSource.apply(imageSectionSnapshot, to: .image) { [unowned self] in
-                navigationController?.setNavigationBarHidden(true, animated: false)
-                navigationController?.setNavigationBarHidden(false, animated: false)
-            }
+            dataSource.apply(imageSectionSnapshot, to: .image) 
         }
         
         var primaryFieldsSectionSnapshot = NSDiffableDataSourceSectionSnapshot<Field>()
@@ -195,12 +198,6 @@ class ItemDetailViewController: UIViewController, UICollectionViewDelegate {
     
     func collectionView(_ collectionView: UICollectionView, shouldHighlightItemAt indexPath: IndexPath) -> Bool {
         return false
-    }
-    
-    @objc
-    private func managedObjectContextDidSave(_ notification: Notification) {
-        configureDataSource()
-        title = item?.title
     }
 
 }

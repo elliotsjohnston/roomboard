@@ -119,6 +119,7 @@ class SettingsViewController: UIViewController, UICollectionViewDelegate {
         
         if let managedContext {
             NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave, object: managedContext)
+                .receive(on: RunLoop.main)
                 .sink { [unowned self] _ in
                     populateTagCount()
                     populateRoomCount()

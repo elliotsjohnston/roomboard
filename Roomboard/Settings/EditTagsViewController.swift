@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import Combine
 import CoreData
 import Logging
 
@@ -16,6 +17,8 @@ class EditTagsViewController: UIViewController, UICollectionViewDelegate, UIColo
     private var currentlyEditingTag: Tag?
     
     private var currentlyEditingIndexPath: IndexPath?
+    
+    private var bag = Set<AnyCancellable>()
     
     private let logger = Logger(label: "com.andyjohnston.roomboard.edit-tags-view-controller")
     
@@ -34,10 +37,12 @@ class EditTagsViewController: UIViewController, UICollectionViewDelegate, UIColo
                 
                 if let item = dataSource.itemIdentifier(for: indexPath), case let .tag(tag) = item {
                     managedContext?.delete(tag)
-                    do {
-                        try managedContext?.save()
-                    } catch {
-                        logger.error("Failed to delete tag: \(error.localizedDescription)")
+                    managedContext?.perform { [unowned self] in
+                        do {
+                            try managedContext?.save()
+                        } catch {
+                            logger.error("Failed to delete tag: \(error.localizedDescription)")
+                        }
                     }
                     var sectionSnapshot = dataSource.snapshot(for: .main)
                     sectionSnapshot.delete([item])
@@ -95,14 +100,17 @@ class EditTagsViewController: UIViewController, UICollectionViewDelegate, UIColo
         config.textFieldSelectionHandler = { [unowned self] in
             currentlyEditingIndexPath = indexPath
         }
-        config.textUpdateHandler = { [unowned self] text in
-            tag.text = text
-            
-            do {
-                try managedContext?.save()
-            } catch {
-                logger.error("Failed to update tag: \(error.localizedDescription)")
+        config.textFieldDismissHandler = {
+            managedContext?.perform { [unowned self] in
+                do {
+                    try managedContext?.save()
+                } catch {
+                    logger.error("Failed to update tag: \(error.localizedDescription)")
+                }
             }
+        }
+        config.textUpdateHandler = { text in
+            tag.text = text
         }
         cell.contentConfiguration = config
         let editColorButton = makeEditColorButton(UIAction { [unowned self] _ in
@@ -139,15 +147,27 @@ class EditTagsViewController: UIViewController, UICollectionViewDelegate, UIColo
         populateTags()
         configureDataSource()
         
-        NotificationCenter.default.addObserver(self,
-                                               selector: #selector(keyboardWillShow),
-                                               name: UIResponder.keyboardWillShowNotification,
-                                               object: nil)
+        NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
+            .receive(on: RunLoop.main)
+            .sink { [unowned self] notification in
+                if let keyboardFrame = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
+                    guard let currentlyEditingIndexPath else { return }
+                    tagsView.verticalScrollIndicatorInsets.bottom = keyboardFrame.height
+                    tagsView.contentInset.bottom = keyboardFrame.height
+                    tagsView.scrollToItem(at: currentlyEditingIndexPath, at: .top, animated: true)
+                }
+            }
+            .store(in: &bag)
         
-        NotificationCenter.default.addObserver(self,
-                                               selector: #selector(keyboardWillHide),
-                                               name: UIResponder.keyboardWillHideNotification,
-                                               object: nil)
+        NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
+            .receive(on: RunLoop.main)
+            .sink { [unowned self] _ in
+                UIView.animate(withDuration: 0.21) { [unowned self] in
+                    tagsView.contentInset.bottom = 0.0
+                    tagsView.verticalScrollIndicatorInsets.bottom = 0.0
+                }
+            }
+            .store(in: &bag)
     }
     
     private func populateTags() {
@@ -192,10 +212,12 @@ class EditTagsViewController: UIViewController, UICollectionViewDelegate, UIColo
                 newTagField.contentConfiguration = config
             }
             
-            do {
-                try managedContext.save()
-            } catch {
-                logger.error("Failed to save tag: \(error.localizedDescription)")
+            managedContext.perform { [unowned self] in
+                do {
+                    try managedContext.save()
+                } catch {
+                    logger.error("Failed to save tag: \(error.localizedDescription)")
+                }
             }
         }
         collectionView.deselectItem(at: indexPath, animated: true)
@@ -209,28 +231,12 @@ class EditTagsViewController: UIViewController, UICollectionViewDelegate, UIColo
         snapshot.reloadItems([TagControl.tag(tag: currentlyEditingTag)])
         dataSource.apply(snapshot)
         
-        do {
-            try managedContext?.save()
-        } catch {
-            logger.error("Failed to update tag: \(error.localizedDescription)")
-        }
-    }
-    
-    @objc
-    private func keyboardWillShow(_ notification: Notification) {
-        if let keyboardFrame = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
-            guard let currentlyEditingIndexPath else { return }
-            tagsView.verticalScrollIndicatorInsets.bottom = keyboardFrame.height
-            tagsView.contentInset.bottom = keyboardFrame.height
-            tagsView.scrollToItem(at: currentlyEditingIndexPath, at: .top, animated: true)
-        }
-    }
-    
-    @objc
-    private func keyboardWillHide(_ notification: Notification) {
-        UIView.animate(withDuration: 0.21) { [unowned self] in
-            tagsView.contentInset.bottom = 0.0
-            tagsView.verticalScrollIndicatorInsets.bottom = 0.0
+        managedContext?.perform { [unowned self] in
+            do {
+                try managedContext?.save()
+            } catch {
+                logger.error("Failed to update tag: \(error.localizedDescription)")
+            }
         }
     }
 

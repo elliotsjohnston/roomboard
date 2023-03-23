@@ -36,4 +36,5 @@ struct TextFieldContentConfiguration: UIContentConfiguration {
     var textTransformer: ((String) -> String)?
     var textUpdateHandler: ((String) -> Void)?
     var textFieldSelectionHandler: (() -> Void)?
+    var textFieldDismissHandler: (() -> Void)?
 }

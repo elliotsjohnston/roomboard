@@ -150,25 +150,27 @@ class EnableCameraAccessViewController: UIViewController {
     
     private func filterRooms() {
         guard let managedContext else { return }
-        do {
-            let fetchRequest = Room.fetchRequest()
-            fetchRequest.sortDescriptors = [NSSortDescriptor(key: "index", ascending: true)]
-            _ = try managedContext.fetch(fetchRequest)
-                .reduce(Int64(0)) { currentIndex, room in
-                    if room.title?.isEmpty == false {
-                        room.index = currentIndex
-                        return currentIndex + 1
-                    } else {
-                        managedContext.delete(room)
-                        return currentIndex
+        managedContext.perform { [unowned self] in
+            do {
+                let fetchRequest = Room.fetchRequest()
+                fetchRequest.sortDescriptors = [NSSortDescriptor(key: "index", ascending: true)]
+                _ = try managedContext.fetch(fetchRequest)
+                    .reduce(Int64(0)) { currentIndex, room in
+                        if room.title?.isEmpty == false {
+                            room.index = currentIndex
+                            return currentIndex + 1
+                        } else {
+                            managedContext.delete(room)
+                            return currentIndex
+                        }
                     }
-                }
-            
-            try managedContext.save()
-        } catch {
+                
+                try managedContext.save()
+            } catch {
 #if DEBUG
-            logger.error("Error filtering rooms: \(error.localizedDescription)")
+                logger.error("Error filtering rooms: \(error.localizedDescription)")
 #endif
+            }
         }
     }
 

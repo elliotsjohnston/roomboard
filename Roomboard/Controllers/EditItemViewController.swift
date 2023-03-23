@@ -6,11 +6,12 @@
 //
 
 import UIKit
+import Combine
 import CoreData
 import Logging
 import PhotosUI
 
-class EditItemViewController: UIViewController, UICollectionViewDelegate, UIAdaptivePresentationControllerDelegate, PHPickerViewControllerDelegate {
+class EditItemViewController: UIViewController, UICollectionViewDelegate, UIAdaptivePresentationControllerDelegate, UIImagePickerControllerDelegate, UINavigationControllerDelegate, PHPickerViewControllerDelegate {
     
     var isEditingItem = false
     
@@ -18,9 +19,11 @@ class EditItemViewController: UIViewController, UICollectionViewDelegate, UIAdap
     
     private var presentedTagPicker: TagPickerViewController?
     
-    private var presentedImagePicker: PHPickerViewController?
+    private var presentedPhotoPicker: PHPickerViewController?
     
     private var currentlyEditingIndexPath: IndexPath?
+    
+    private var bag = Set<AnyCancellable>()
     
     override func willMove(toParent parent: UIViewController?) {
         super.willMove(toParent: parent)
@@ -57,15 +60,27 @@ class EditItemViewController: UIViewController, UICollectionViewDelegate, UIAdap
         fetchRooms()
         configureDataSource()
         
-        NotificationCenter.default.addObserver(self,
-                                               selector: #selector(keyboardWillShow),
-                                               name: UIResponder.keyboardWillShowNotification,
-                                               object: nil)
+        NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
+            .receive(on: RunLoop.main)
+            .sink { [unowned self] notification in
+                if let keyboardFrame = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
+                    guard let currentlyEditingIndexPath else { return }
+                    itemView.verticalScrollIndicatorInsets.bottom = keyboardFrame.height
+                    itemView.contentInset.bottom = keyboardFrame.height
+                    itemView.scrollToItem(at: currentlyEditingIndexPath, at: .bottom, animated: true)
+                }
+            }
+            .store(in: &bag)
         
-        NotificationCenter.default.addObserver(self,
-                                               selector: #selector(keyboardWillHide),
-                                               name: UIResponder.keyboardWillHideNotification,
-                                               object: nil)
+        NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
+            .receive(on: RunLoop.main)
+            .sink { _ in
+                UIView.animate(withDuration: 0.21) { [unowned self] in
+                    itemView.contentInset.bottom = 0.0
+                    itemView.verticalScrollIndicatorInsets.bottom = 0.0
+                }
+            }
+            .store(in: &bag)
     }
     
     private let logger = Logger(label: "com.andyjohnston.roomboard.edit-item-view-controller")
@@ -91,6 +106,42 @@ class EditItemViewController: UIViewController, UICollectionViewDelegate, UIAdap
         return appDelegate.persistentContainer.viewContext
     }()
     
+    private lazy var selectPhotosButton: UIButton = {
+        var config = UIButton.Configuration.plain()
+        config.image = UIImage(systemName: "photo")
+        config.baseForegroundColor = .white
+        
+        let selectPhotosButton = UIButton(configuration: config, primaryAction: UIAction { [unowned self] _ in
+            dismiss(animated: true) { [unowned self] in
+                presentPhotoPicker()
+            }
+        })
+        return selectPhotosButton
+    }()
+    
+    private lazy var cameraOverlayView: UIStackView = {
+        let bottomSpacerView = UIView()
+        let leadingSpacerView = UIView()
+        let selectPhotosStack = UIStackView(arrangedSubviews: [leadingSpacerView, selectPhotosButton])
+        let cameraOverlayView = UIStackView(arrangedSubviews: [selectPhotosStack, bottomSpacerView])
+        cameraOverlayView.isLayoutMarginsRelativeArrangement = true
+        cameraOverlayView.directionalLayoutMargins.top = -4.0
+        cameraOverlayView.axis = .vertical
+        return cameraOverlayView
+    }()
+    
+    private lazy var imagePicker: UIImagePickerController = {
+        let imagePicker = UIImagePickerController()
+        imagePicker.sourceType = .camera
+        imagePicker.allowsEditing = true
+        cameraOverlayView.frame = imagePicker.cameraOverlayView!.frame
+        cameraOverlayView.frame.size.height = 100.0
+        imagePicker.cameraOverlayView = cameraOverlayView
+        imagePicker.cameraFlashMode = .auto
+        imagePicker.delegate = self
+        return imagePicker
+    }()
+    
     private lazy var addButton: UIBarButtonItem = {
         let addButton = UIBarButtonItem(title: "Add", style: .done, target: self, action: #selector(addItem))
         addButton.isEnabled = false
@@ -101,6 +152,13 @@ class EditItemViewController: UIViewController, UICollectionViewDelegate, UIAdap
         let doneButton = UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(saveItem))
         doneButton.isEnabled = false
         return doneButton
+    }()
+    
+    private lazy var activityIndicatorItem: UIBarButtonItem = {
+        let activityIndicator = UIActivityIndicatorView(style: .medium)
+        let activityIndicatorItem = UIBarButtonItem(customView: activityIndicator)
+        activityIndicator.startAnimating()
+        return activityIndicatorItem
     }()
     
     private lazy var deleteAlertController: UIAlertController = {
@@ -179,7 +237,7 @@ class EditItemViewController: UIViewController, UICollectionViewDelegate, UIAdap
             config.editButtonTitle = "Retake"
         }
         config.imageEditHandler = { [unowned self] in
-            presentImagePicker()
+            presentCameraImagePicker()
         }
         cell.contentConfiguration = config
     }
@@ -376,18 +434,32 @@ class EditItemViewController: UIViewController, UICollectionViewDelegate, UIAdap
         tagPicker.contentConfiguration = config
     }
     
-    private func presentImagePicker() {
+    private func presentCameraImagePicker() {
+        
+        #if targetEnvironment(simulator)
+        
+        presentPhotoPicker()
+        
+        #else
+        
+        present(imagePicker, animated: true)
+        
+        #endif
+        
+    }
+    
+    private func presentPhotoPicker() {
         var config = PHPickerConfiguration()
         config.filter = .images
         
-        let imagePicker = PHPickerViewController(configuration: config)
-        if let sheet = imagePicker.sheetPresentationController {
+        let photoPicker = PHPickerViewController(configuration: config)
+        if let sheet = photoPicker.sheetPresentationController {
             sheet.detents = [.medium()]
         }
-        imagePicker.delegate = self
+        photoPicker.delegate = self
         
-        present(imagePicker, animated: true)
-        self.presentedImagePicker = imagePicker
+        present(photoPicker, animated: true)
+        self.presentedPhotoPicker = photoPicker
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -435,12 +507,14 @@ Created an item:
         logger.info(.init(stringLiteral: metadata))
 #endif
         
-        do {
-            try managedContext.save()
-        } catch {
+        managedContext.perform { [unowned self] in
+            do {
+                try managedContext.save()
+            } catch {
 #if DEBUG
-            logger.error("Failed to save item to managed context: \(error.localizedDescription)")
+                logger.error("Failed to save item to managed context: \(error.localizedDescription)")
 #endif
+            }
         }
         
         dismiss(animated: true)
@@ -476,15 +550,22 @@ Edited an item:
         logger.info(.init(stringLiteral: metadata))
 #endif
         
-        do {
-            try managedContext.save()
-        } catch {
-#if DEBUG
-            logger.error("Failed to save item to managed context: \(error.localizedDescription)")
-#endif
-        }
+        navigationItem.rightBarButtonItem = activityIndicatorItem
         
-        dismiss(animated: true)
+        // FIXME: - Execute this on a background thread
+        
+        DispatchQueue.main.async { [unowned self] in
+            do {
+                try managedContext.save()
+            } catch {
+#if DEBUG
+                logger.error("Failed to save item to managed context: \(error.localizedDescription)")
+#endif
+            }
+            
+            dismiss(animated: true)
+        }
+
     }
     
     func collectionView(_ collectionView: UICollectionView, shouldHighlightItemAt indexPath: IndexPath) -> Bool {
@@ -512,7 +593,7 @@ Edited an item:
             presentTagPicker()
         } else {
             if indexPath == dataSource.indexPath(for: .imagePicker) {
-                presentImagePicker()
+                presentCameraImagePicker()
             }
             collectionView.deselectItem(at: indexPath, animated: true)
         }
@@ -548,6 +629,19 @@ Edited an item:
         }
     }
     
+    func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+        dismiss(animated: true)
+        guard let image = info[.editedImage] as? UIImage else { return }
+        DispatchQueue.main.async { [unowned self] in
+            updateSelectedImage(image)
+            updateDoneButtonState()
+        }
+    }
+    
+    func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+        dismiss(animated: true)
+    }
+    
     private func updateSelectedImage(_ image: UIImage) {
         selectedImage = image
         
@@ -560,24 +654,6 @@ Edited an item:
         
         updateAddButtonState()
         updateDoneButtonState()
-    }
-    
-    @objc
-    private func keyboardWillShow(_ notification: Notification) {
-        if let keyboardFrame = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
-            guard let currentlyEditingIndexPath else { return }
-            itemView.verticalScrollIndicatorInsets.bottom = keyboardFrame.height
-            itemView.contentInset.bottom = keyboardFrame.height
-            itemView.scrollToItem(at: currentlyEditingIndexPath, at: .bottom, animated: true)
-        }
-    }
-    
-    @objc
-    private func keyboardWillHide(_ notification: Notification) {
-        UIView.animate(withDuration: 0.21) { [unowned self] in
-            itemView.contentInset.bottom = 0.0
-            itemView.verticalScrollIndicatorInsets.bottom = 0.0
-        }
     }
 
 }

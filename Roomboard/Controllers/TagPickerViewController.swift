@@ -39,10 +39,12 @@ class TagPickerViewController: UIViewController, UICollectionViewDelegate, UICol
                 if let item = dataSource.itemIdentifier(for: indexPath), case let .tag(tag) = item {
                     managedContext?.delete(tag)
                     selectedTags.removeAll { $0 == tag }
-                    do {
-                        try managedContext?.save()
-                    } catch {
-                        logger.error("Failed to delete tag: \(error.localizedDescription)")
+                    managedContext?.perform { [unowned self] in
+                        do {
+                            try managedContext?.save()
+                        } catch {
+                            logger.error("Failed to delete tag: \(error.localizedDescription)")
+                        }
                     }
                     var sectionSnapshot = dataSource.snapshot(for: .main)
                     sectionSnapshot.delete([item])
@@ -103,10 +105,12 @@ class TagPickerViewController: UIViewController, UICollectionViewDelegate, UICol
         config.textUpdateHandler = { [unowned self] text in
             tag.text = text
             
-            do {
-                try managedContext?.save()
-            } catch {
-                logger.error("Failed to update tag: \(error.localizedDescription)")
+            managedContext?.perform { [unowned self] in
+                do {
+                    try managedContext?.save()
+                } catch {
+                    logger.error("Failed to update tag: \(error.localizedDescription)")
+                }
             }
         }
         cell.contentConfiguration = config
@@ -225,10 +229,12 @@ class TagPickerViewController: UIViewController, UICollectionViewDelegate, UICol
             snapshot.insertItems([.tag(tag: newTag)], beforeItem: .addButton)
             dataSource.apply(snapshot, animatingDifferences: true)
             
-            do {
-                try managedContext.save()
-            } catch {
-                logger.error("Failed to save tag: \(error.localizedDescription)")
+            managedContext.perform { [unowned self] in
+                do {
+                    try managedContext.save()
+                } catch {
+                    logger.error("Failed to save tag: \(error.localizedDescription)")
+                }
             }
         }
         
@@ -241,10 +247,12 @@ class TagPickerViewController: UIViewController, UICollectionViewDelegate, UICol
         snapshot.reloadItems([TagControl.tag(tag: currentlyEditingTag)])
         dataSource.apply(snapshot)
         
-        do {
-            try managedContext?.save()
-        } catch {
-            logger.error("Failed to update tag: \(error.localizedDescription)")
+        managedContext?.perform { [unowned self] in
+            do {
+                try managedContext?.save()
+            } catch {
+                logger.error("Failed to update tag: \(error.localizedDescription)")
+            }
         }
     }
     

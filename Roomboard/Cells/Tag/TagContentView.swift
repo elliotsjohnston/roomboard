@@ -20,6 +20,8 @@ class TagContentView: UIView, UIContentView, UITextFieldDelegate {
     
     private var textFieldSelectionHandler: (() -> Void)?
     
+    private var textFieldDismissHandler: (() -> Void)?
+    
     var leadingTextAnchor: NSLayoutXAxisAnchor {
         tagField.leadingAnchor
     }
@@ -94,6 +96,7 @@ class TagContentView: UIView, UIContentView, UITextFieldDelegate {
         tagField.isEnabled = configuration.isEditable
         textUpdateHandler = configuration.textUpdateHandler
         textFieldSelectionHandler = configuration.textFieldSelectionHandler
+        textFieldDismissHandler = configuration.textFieldDismissHandler
         
         if configuration.isEditable && configuration.isEditing {
             tagField.becomeFirstResponder()
@@ -103,6 +106,10 @@ class TagContentView: UIView, UIContentView, UITextFieldDelegate {
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         textField.resignFirstResponder()
         return true
+    }
+    
+    func textFieldDidEndEditing(_ textField: UITextField) {
+        textFieldDismissHandler?()
     }
     
     func textFieldDidBeginEditing(_ textField: UITextField) {

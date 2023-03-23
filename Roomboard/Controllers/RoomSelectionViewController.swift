@@ -6,10 +6,13 @@
 //
 
 import UIKit
+import Combine
 import CoreData
 import Logging
 
 class RoomSelectionViewController: UIViewController, UICollectionViewDelegate, UIScrollViewDelegate {
+    
+    private var bag = Set<AnyCancellable>()
     
     private let logger = Logger(label: "com.andyjohnston.roomboard.room-selection-view-controller")
     
@@ -103,12 +106,14 @@ class RoomSelectionViewController: UIViewController, UICollectionViewDelegate, U
     
     private lazy var roomCellRegistration = UICollectionView.CellRegistration<TextFieldCell, Room> { cell, indexPath, room in
         var config = TextFieldContentConfiguration()
-        config.textUpdateHandler = { [unowned self] text in
+        config.textUpdateHandler = { text in
             room.title = text
-            saveContext()
         }
         config.textFieldSelectionHandler = { [unowned self] in
             currentlyEditingIndexPath = indexPath
+        }
+        config.textFieldDismissHandler = { [unowned self] in
+            saveContext()
         }
         config.text = room.title ?? ""
         config.textAlignment = .left
@@ -202,15 +207,27 @@ class RoomSelectionViewController: UIViewController, UICollectionViewDelegate, U
         
         configureDataSource()
         
-        NotificationCenter.default.addObserver(self,
-                                               selector: #selector(keyboardWillShow),
-                                               name: UIResponder.keyboardWillShowNotification,
-                                               object: nil)
+        NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)
+            .receive(on: RunLoop.main)
+            .sink { [unowned self] notification in
+                if let keyboardFrame = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
+                    guard let currentlyEditingIndexPath else { return }
+                    roomsView.verticalScrollIndicatorInsets.bottom = keyboardFrame.height - contentStack.directionalLayoutMargins.bottom
+                    roomsView.contentInset.bottom = keyboardFrame.height - contentStack.directionalLayoutMargins.bottom
+                    roomsView.scrollToItem(at: currentlyEditingIndexPath, at: .top, animated: true)
+                }
+            }
+            .store(in: &bag)
         
-        NotificationCenter.default.addObserver(self,
-                                               selector: #selector(keyboardWillHide),
-                                               name: UIResponder.keyboardWillHideNotification,
-                                               object: nil)
+        NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)
+            .receive(on: RunLoop.main)
+            .sink { _ in
+                UIView.animate(withDuration: 0.21) { [unowned self] in
+                    roomsView.contentInset.bottom = materialView.frame.height - contentStack.directionalLayoutMargins.bottom
+                    roomsView.verticalScrollIndicatorInsets.bottom = materialView.frame.height - contentStack.directionalLayoutMargins.bottom
+                }
+            }
+            .store(in: &bag)
     }
     
     override func viewDidLayoutSubviews() {
@@ -226,12 +243,14 @@ class RoomSelectionViewController: UIViewController, UICollectionViewDelegate, U
     
     private func saveContext() {
         guard let managedContext else { return }
-        do {
-            try managedContext.save()
-        } catch {
+        managedContext.perform { [unowned self] in
+            do {
+                try managedContext.save()
+            } catch {
 #if DEBUG
-            logger.error("Error saving managed context: \(error.localizedDescription)")
+                logger.error("Error saving managed context: \(error.localizedDescription)")
 #endif
+            }
         }
     }
     
@@ -321,24 +340,6 @@ class RoomSelectionViewController: UIViewController, UICollectionViewDelegate, U
             materialView.effect = UIBlurEffect(style: .regular)
         } else {
             materialView.effect = nil
-        }
-    }
-    
-    @objc
-    private func keyboardWillShow(_ notification: Notification) {
-        if let keyboardFrame = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue {
-            guard let currentlyEditingIndexPath else { return }
-            roomsView.verticalScrollIndicatorInsets.bottom = keyboardFrame.height - contentStack.directionalLayoutMargins.bottom
-            roomsView.contentInset.bottom = keyboardFrame.height - contentStack.directionalLayoutMargins.bottom
-            roomsView.scrollToItem(at: currentlyEditingIndexPath, at: .top, animated: true)
-        }
-    }
-    
-    @objc
-    private func keyboardWillHide(_ notification: Notification) {
-        UIView.animate(withDuration: 0.21) { [unowned self] in
-            roomsView.contentInset.bottom = materialView.frame.height - contentStack.directionalLayoutMargins.bottom
-            roomsView.verticalScrollIndicatorInsets.bottom = materialView.frame.height - contentStack.directionalLayoutMargins.bottom
         }
     }
 

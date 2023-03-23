@@ -41,12 +41,14 @@ extension DefaultTag {
             tag.color = defaultTag.color
         }
         
-        do {
-            try context.save()
-        } catch {
+        context.perform {
+            do {
+                try context.save()
+            } catch {
 #if DEBUG
-            logger.error("Failed to save context after installing \(defaultTags.count) default tags: \(error.localizedDescription)")
+                logger.error("Failed to save context after installing \(defaultTags.count) default tags: \(error.localizedDescription)")
 #endif
+            }
         }
     }
 }

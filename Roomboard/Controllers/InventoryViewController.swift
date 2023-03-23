@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import Combine
 import CoreData
 import Logging
 
@@ -25,6 +26,8 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
     private var editItemNavigationController: UINavigationController?
     
     private var settingsNavigationController: UINavigationController?
+    
+    private var bag = Set<AnyCancellable>()
     
     private lazy var settingsButton: UIBarButtonItem = {
         let settingsButton = UIBarButtonItem(image: UIImage(systemName: "gear"),
@@ -105,10 +108,12 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
                 var sectionSnapshot = dataSource.snapshot(for: .main)
                 if let item = dataSource.itemIdentifier(for: indexPath) {
                     managedContext?.delete(item)
-                    do {
-                        try managedContext?.save()
-                    } catch {
-                        logger.error("Error deleting item \(item.title ?? ""): \(error.localizedDescription)")
+                    managedContext?.perform { [unowned self] in
+                        do {
+                            try managedContext?.save()
+                        } catch {
+                            logger.error("Error deleting item \(item.title ?? ""): \(error.localizedDescription)")
+                        }
                     }
                     sectionSnapshot.delete([item])
                 }
@@ -201,10 +206,12 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
         }
         
         if let managedContext {
-            NotificationCenter.default.addObserver(self,
-                                                   selector: #selector(managedObjectContextDidSave),
-                                                   name: .NSManagedObjectContextDidSave,
-                                                   object: managedContext)
+            NotificationCenter.default.publisher(for: .NSManagedObjectContextDidSave, object: managedContext)
+                .receive(on: RunLoop.main)
+                .sink { [unowned self] _ in
+                    populateInventoryItems()
+                }
+                .store(in: &bag)
         }
         
         sortItems(animated: false)
@@ -566,11 +573,6 @@ class InventoryViewController: UIViewController, UICollectionViewDelegate, UISea
         let itemDetailController = ItemDetailViewController()
         itemDetailController.item = item
         navigationController?.pushViewController(itemDetailController, animated: true)
-    }
-    
-    @objc
-    private func managedObjectContextDidSave(_ notification: Notification) {
-        populateInventoryItems()
     }
     
 }

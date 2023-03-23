@@ -24,6 +24,8 @@ class TextFieldContentView: UIView, UIContentView, UITextFieldDelegate {
     
     private var textFieldSelectionHandler: (() -> Void)?
     
+    private var textFieldDismissHandler: (() -> Void)?
+
     private lazy var listContent: UIListContentView = {
         let config = UIListContentConfiguration.cell()
         let listContent = UIListContentView(configuration: config)
@@ -116,6 +118,7 @@ class TextFieldContentView: UIView, UIContentView, UITextFieldDelegate {
         self.textTransformer = configuration.textTransformer
         self.textUpdateHandler = configuration.textUpdateHandler
         self.textFieldSelectionHandler = configuration.textFieldSelectionHandler
+        self.textFieldDismissHandler = configuration.textFieldDismissHandler
     }
     
     @objc
@@ -149,6 +152,10 @@ class TextFieldContentView: UIView, UIContentView, UITextFieldDelegate {
     
     func textFieldDidBeginEditing(_ textField: UITextField) {
         textFieldSelectionHandler?()
+    }
+    
+    func textFieldDidEndEditing(_ textField: UITextField) {
+        textFieldDismissHandler?()
     }
     
     func textFieldShouldReturn(_ textField: UITextField) -> Bool {
